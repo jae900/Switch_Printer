@@ -5,9 +5,12 @@
 #include "stdafx.h"
 #include "Hook.h"
 #include "NewFunction.h"
+#include "..\Common\Common.h"
+#include "Config.h"
 #include <strsafe.h>
 #include "Debug.h"
 
+extern SPRINTER_CONFIG	g_Config;
 extern HOOKINFO	g_HookInfo[MAX_FUNCTION];
 extern WCHAR	g_wszCfgFilePath[MAX_PATH];
 
@@ -31,13 +34,25 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 				}
 			}
 			
-			// 후킹
-			if (ERROR_NOT_SUPPORTED == HookFunction(L"Gdi32.dll", "CreateDCW", &g_HookInfo[nhCreateDCW], NewCreateDCW)) {
-				DEBUG(L"Failed to hook CreateDCW.");
+			GetConfiguration(&g_Config);
 
-				HookFunction(L"Winspool.drv", "OpenPrinter2W", &g_HookInfo[nhOpenPrinter2W], NewOpenPrinter2W, TRUE);
+			// FarPoint를 사용하는 출력 프로그램의 division by zero 오류등을 해결하기 위해
+			// 기본 프린터를 설정된 프린터로 설정한다.
+			WCHAR	wszPrinterName[64];
+			DWORD	dwLength = 64;
+
+			// 1. 동작 중인지 확인
+			if (g_Config.bRun) {
+				// 2. 현재의 프린터를 가져온다.
+				if (GetDefaultPrinter(wszPrinterName, &dwLength)
+					&& (wcsicmp(wszPrinterName, g_Config.wszPrinterName) != 0))
+				{
+					SetDefaultPrinter(g_Config.wszPrinterName);
+					WritePrivateProfileString(L"Default", L"Printer", wszPrinterName, g_wszCfgFilePath);
+				}
 			}
 
+			HookFunction(L"Winspool.drv", "OpenPrinter2W", &g_HookInfo[nhOpenPrinter2W], NewOpenPrinter2W, TRUE);
 			HookFunction(L"XpsPrint.dll", "StartXpsPrintJob", &g_HookInfo[nhStartXpsPrintJob], NewStartXpsPrintJob);
 			HookFunction(L"kernel32.dll", "LoadLibraryExW", &g_HookInfo[nhLoadLibraryExW], NewLoadLibraryExW, TRUE);
 		}

@@ -10,6 +10,7 @@ typedef HDC (WINAPI *FN_CREATEDCW)(LPCWSTR pwszDriver, LPCWSTR pwszDevice, LPCWS
 typedef HMODULE (WINAPI *FN_LOADLIBRARYEXW)(__in LPCWSTR lpFileName, __reserved HANDLE hFile, __in DWORD dwFlags);
 typedef HRESULT (WINAPI *FN_STARTXPSPRINTJOB)(__in const LPCWSTR printerName, __in const LPCWSTR jobName, __in const LPCWSTR outputFileName, __in HANDLE progressEvent,	__in HANDLE completionEvent, __in UINT8 *printablePagesOn, __in UINT32 printablePagesOnCount, __out PVOID *xpsPrintJob,	__out PVOID *documentStream, __out PVOID *printTicketStream);
 typedef BOOL (WINAPI *FN_OPENPRINTER2W)(__in LPTSTR pPrinterName, __out LPHANDLE phPrinter, __in LPPRINTER_DEFAULTS pDefault, __in PPRINTER_OPTIONSW pOptions);
+typedef BOOL(WINAPI *FN_OPENPRINTERW)(__in LPTSTR pPrinterName, __out LPHANDLE phPrinter, __in LPPRINTER_DEFAULTS pDefault);
 
 HDC
 WINAPI
@@ -17,6 +18,14 @@ NewCreateDCW(__in LPCWSTR        pwszDriver,
 			 __in LPCWSTR        pwszDevice,
 			 __in LPCWSTR        pszPort,
 			 __in const DEVMODEW *pdm);
+
+BOOL
+WINAPI
+NewOpenPrinterW(
+	_In_  LPTSTR             pPrinterName,
+	_Out_ LPHANDLE           phPrinter,
+	_In_  LPPRINTER_DEFAULTS pDefault
+);
 
 BOOL
 WINAPI

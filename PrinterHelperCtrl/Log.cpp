@@ -13,6 +13,9 @@ CLog *CLog::Log_ = NULL;
 */
 CLog::~CLog()
 {
+	if (Log_) {
+		delete Log_;
+	}
 }
 
 CLog* CLog::GetInstance()

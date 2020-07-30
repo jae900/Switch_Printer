@@ -14,7 +14,7 @@
 #define POINTER			L"0x%08x"
 #endif
 
-#define MAX_FUNCTION	4
+#define MAX_FUNCTION	5
 
 /**
 	@brief		_HOOKINFO의 인덱스
@@ -25,6 +25,7 @@ typedef enum _HOOKINDEX {
 	nhLoadLibraryExW,		///< LoadLibrary, 동적 DLL의 Export 함수 StartXpsPrintJob을 로딩 시점에 후킹하기 위한 LoadLibrary 인덱스
 	nhCreateDCW,			///< GDI 프린터 후킹을 위한 CreateDC API 후킹
 	nhStartXpsPrintJob,		///< XPSPRINT.DLL을 이용하여 출력 시 해당 API 후킹
+	nhOpenPrinterW,
 	nhOpenPrinter2W,		///< Windows 7 x64에서 CreateDC의 후킹이 불가하여 OpenPrinter2W 사용
 } HOOKINDEX;
 
