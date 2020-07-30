@@ -28,6 +28,9 @@ CLog					*g_pLog = NULL;						///< 파일 로그 기록 인스턴스
 SPRINTER_CONFIG			g_sPrinterConfig = { 0, };			///< 프린터 설정
 BOOL					g_bInstalling = FALSE;				///< 프린터가 설치되는중일 경우
 
+HANDLE					g_hChangePrinter = NULL;
+BOOL					g_bChangePrinter = FALSE;
+
 /**
 	@brief		프로세스 실행
 	@param[in]	wszCommandLine		Command Line
@@ -119,6 +122,27 @@ InstallFilePrinter(__in LPVOID lpParam)
 		Run(wszCommandLine);
 
 		WRITELOG(L"Complete install File Printer.");
+		
+		// 설치된 7-Zip 제거
+		if (hKey == NULL) {
+			dwRet = RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\7-Zip", 0, KEY_READ, &hKey);
+			if (dwRet != 0) {
+				WRITELOG(L"Failed to query key for uninstall 7-Zip(%d).", dwRet);
+				break;
+			}
+
+			DWORD		dwType = REG_SZ;
+			DWORD		dwLength = MAX_PATH * 2;
+
+			dwRet = RegQueryValueEx(hKey, L"Path", NULL, &dwType, (LPBYTE)wszFileName, &dwLength);
+			if (dwRet != 0) {
+				WRITELOG(L"Failed to query value(7-Zip Path) for uninstall(%d).", dwRet);
+				break;
+			}
+
+			StringCchPrintf(wszCommandLine, 520, L"%sUninstall.exe /S", wszFileName);
+			Run(wszCommandLine);
+		}
 	} while (FALSE);
 
 	if (hKey) {
@@ -396,6 +420,42 @@ SetFileNameFormat(__in PWCHAR wszFileNameFormat)
 	} while (FALSE);
 }
 
+/**
+	@brief		기본 프린터를 변경하는 루틴
+*/
+DWORD
+WINAPI
+ChangeDefaultPrinter(__in LPVOID lpParam)
+{
+	DWORD	dwRet = NO_ERROR;
+	WCHAR	wszPrinterName[64] = { 0, };
+	DWORD	dwLength = 64;
+
+	do {
+		if (g_sPrinterConfig.bRun) {	// 기본 프린터를 설정된 프린터로 변경한다.
+			GetDefaultPrinter(wszPrinterName, &dwLength);
+
+			if ((g_sPrinterConfig.wszPrinterName[0] != '\0')
+				&& (_wcsicmp(wszPrinterName, g_sPrinterConfig.wszPrinterName) != 0))
+			{
+				WCHAR	wszCfgFile[MAX_PATH] = { 0, };
+
+				SetDefaultPrinter(g_sPrinterConfig.wszPrinterName);
+
+				StringCchPrintf(wszCfgFile, MAX_PATH, L"%s\\PrinterHelper.cfg", g_wszCurrentDir);
+				WritePrivateProfileString(L"Default", L"Printer", wszPrinterName, wszCfgFile);
+			}
+		}
+		else {							// 기존의 기본 프린터로 변경한다.
+			break;
+		}
+
+		// 3초에 한번씩
+		Sleep(3000);
+	} while (g_bChangePrinter);
+
+	return dwRet;
+}
 
 /**
 	@brief		SPrinter 모듈의 설정을 수정한다.
@@ -415,6 +475,32 @@ SetConfig(__in BOOL bRun, __in PWCHAR lpDestDir)
 
 	StringCchCopy(wszCfgFile, MAX_PATH, g_wszCurrentDir);
 	StringCchCat(wszCfgFile, MAX_PATH, L"\\PrinterHelper.cfg");
+
+	if (g_sPrinterConfig.bRun != bRun) {
+		// 파일로 저장 설정이 On일 경우 스레드를 이용하여 주기적으로 Default Printer를 변경한다.
+		if (bRun) {
+			if (g_hChangePrinter == NULL) {
+				g_bChangePrinter = TRUE;
+				g_hChangePrinter = CreateThread(NULL, 0, ChangeDefaultPrinter, NULL, 0, NULL);
+			}
+		}
+		else {
+			g_bChangePrinter = FALSE;
+			if (g_hChangePrinter) {
+				CloseHandle(g_hChangePrinter);
+				g_hChangePrinter = NULL;
+			}
+			
+			WCHAR	wszPrinterName[64] = { 0, };
+
+			GetPrivateProfileString(L"Default", L"Printer", L"", wszPrinterName, 64, wszCfgFile);
+			if (wszPrinterName[0] != L'\0') {
+				SetDefaultPrinter(wszPrinterName);
+			}
+			// 삭제
+			WritePrivateProfileString(L"Default", L"Printer", L"", wszCfgFile);
+		}
+	}
 
 	g_sPrinterConfig.bRun = bRun;
 	if (lpDestDir && lpDestDir[1] == L':') {

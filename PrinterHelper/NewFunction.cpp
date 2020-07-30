@@ -121,6 +121,57 @@ NewOpenPrinter2W(__in  LPWSTR				pPrinterName,
 			break;
 		}
 
+		DEBUG(L"Default : 0x%08x, Options : 0x%08x", pDefault, pOptions);
+
+		if (((pPrinterName[0] >= 'a') && (pPrinterName[0] <= 'z'))
+			|| ((pPrinterName[0] >= 'A') && (pPrinterName[0] <= 'Z'))
+			|| ((pPrinterName[0] >= '0') && (pPrinterName[0] <= '9')))
+		{
+			
+		}
+		else {
+			break;
+		}
+		
+		GetConfiguration(&g_Config);
+
+		// 설정 확인
+		if (!g_Config.bRun) {
+			break;
+		}
+	
+		if (pDefault) {
+			if (pDefault->pDevMode) {
+				StringCchCopy(pDefault->pDevMode->dmDeviceName, 32, g_Config.wszPrinterName);
+			}
+		}
+
+		if (g_Config.wszOutputDir[0] != L'\0') {
+			SetBypassSaveAs(TRUE);
+		}
+
+		pNewPrinterName = g_Config.wszPrinterName;
+		DEBUG(L"Change : %s -> %s", pPrinterName, pNewPrinterName);
+	} while (FALSE);
+
+	return ((FN_OPENPRINTER2W)g_HookInfo[nhOpenPrinter2W].pfnOrgFunction)(pNewPrinterName, phPrinter, pDefault, pOptions);
+}
+
+BOOL
+WINAPI
+NewOpenPrinterW(
+	_In_  LPTSTR             pPrinterName,
+	_Out_ LPHANDLE           phPrinter,
+	_In_  LPPRINTER_DEFAULTS pDefault
+)
+{
+	LPWSTR		pNewPrinterName = pPrinterName;
+
+	do {
+		if (pPrinterName == NULL) {
+			break;
+		}
+
 		GetConfiguration(&g_Config);
 
 		// 설정 확인
@@ -136,7 +187,7 @@ NewOpenPrinter2W(__in  LPWSTR				pPrinterName,
 		DEBUG(L"Change : %s -> %s", pPrinterName, pNewPrinterName);
 	} while (FALSE);
 
-	return ((FN_OPENPRINTER2W)g_HookInfo[nhOpenPrinter2W].pfnOrgFunction)(pNewPrinterName, phPrinter, pDefault, pOptions);
+	return ((FN_OPENPRINTERW)g_HookInfo[nhOpenPrinterW].pfnOrgFunction)(pNewPrinterName, phPrinter, pDefault);
 }
 
 /**
@@ -160,19 +211,36 @@ NewLoadLibraryExW(__in       LPCWSTR lpFileName,
 	size_t nLength = wcslen(lpFileName);
 
 										//		  123456789012
-	if ((nLength >= 12)
-		&& _wcsnicmp(&lpFileName[nLength - 12], L"xpsprint.dll", 12) == 0)
-	{
-		PVOID fnStartXpsPrintJob = GetProcAddress(hMod, "StartXpsPrintJob");
+	if (nLength >= 12) {
+		if ((_wcsnicmp(&lpFileName[nLength - 12], L"xpsprint.dll", 12) == 0)
+			&& (g_HookInfo[nhStartXpsPrintJob].pfnOrgFunction == NULL))
+		{
+			PVOID fnStartXpsPrintJob = GetProcAddress(hMod, "StartXpsPrintJob");
 
-		DEBUG(L"Hook : StartXpsPrintJob : " POINTER, fnStartXpsPrintJob);
+			DEBUG(L"Hook : StartXpsPrintJob : " POINTER, fnStartXpsPrintJob);
 
-		if (fnStartXpsPrintJob) {
-			HookFunction(hMod, fnStartXpsPrintJob, &g_HookInfo[nhStartXpsPrintJob], NewStartXpsPrintJob);
+			if (fnStartXpsPrintJob) {
+				HookFunction(hMod, fnStartXpsPrintJob, &g_HookInfo[nhStartXpsPrintJob], NewStartXpsPrintJob);
+			}
+			else {
+				DWORD dwRet = GetLastError();
+				DEBUG(L"Failed to get procedure(%d).", dwRet);
+			}
 		}
-		else {
-			DWORD dwRet = GetLastError();
-			DEBUG(L"Failed to get procedure(%d).", dwRet);
+		else if ((_wcsnicmp(&lpFileName[nLength - 12], L"winspool.drv", 12) == 0)
+			&& (g_HookInfo[nhOpenPrinter2W].pfnOrgFunction == NULL))
+		{
+			PVOID fnOpenPrinter2W = GetProcAddress(hMod, "OpenPrinter2W");
+
+			DEBUG(L"Hook : OpenPrinter2W : " POINTER, fnOpenPrinter2W);
+
+			if (fnOpenPrinter2W) {
+				HookFunction(hMod, fnOpenPrinter2W, &g_HookInfo[nhOpenPrinter2W], NewOpenPrinter2W);
+			}
+			else {
+				DWORD dwRet = GetLastError();
+				DEBUG(L"Failed to get procedure(%d).", dwRet);
+			}
 		}
 	}
 
