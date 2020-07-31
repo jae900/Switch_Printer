@@ -640,9 +640,9 @@ CheckAndAttachModule(__in DWORD dwProcessId, __in BOOL b32bitProcess)
 		}
 
 		if (!b32bitProcess)
-			StringCchPrintf(wszCommandLine, MAX_PATH * 2 + 10, L"%s\\%s.exe -i %d %s\\%s.dll", g_wszCurrentDir, INJECTOR_NAME, dwProcessId, g_wszCurrentDir, SPRINTER_NAME);
+			StringCchPrintf(wszCommandLine, MAX_PATH * 2 + 10, L"\"%s\\%s.exe\" -i %d \"%s\\%s.dll\"", g_wszCurrentDir, INJECTOR_NAME, dwProcessId, g_wszCurrentDir, SPRINTER_NAME);
 		else
-			StringCchPrintf(wszCommandLine, MAX_PATH * 2 + 10, L"%s\\%s32.exe -i %d %s\\%s32.dll", g_wszCurrentDir, INJECTOR_NAME, dwProcessId, g_wszCurrentDir, SPRINTER_NAME);
+			StringCchPrintf(wszCommandLine, MAX_PATH * 2 + 10, L"\"%s\\%s32.exe\" -i %d \"%s\\%s32.dll\"", g_wszCurrentDir, INJECTOR_NAME, dwProcessId, g_wszCurrentDir, SPRINTER_NAME);
 
 		do {
 			if (_wcsicmp(me.szModule, L"gdi32.dll") == 0) {

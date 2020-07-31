@@ -14,6 +14,8 @@ extern SPRINTER_CONFIG	g_Config;
 extern HOOKINFO	g_HookInfo[MAX_FUNCTION];
 extern WCHAR	g_wszCfgFilePath[MAX_PATH];
 
+CRITICAL_SECTION	cs;
+
 /**
 	@brief		DLL 엔트리
 */
@@ -25,6 +27,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	{
 	case DLL_PROCESS_ATTACH:
 		{
+			InitializeCriticalSection(&cs);
+
 			GetModuleFileName(hModule, g_wszCfgFilePath, MAX_PATH);
 			for (size_t i = wcslen(g_wszCfgFilePath); i > 0; i--) {
 				if (g_wszCfgFilePath[i] == L'\\') {
@@ -45,7 +49,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			if (g_Config.bRun) {
 				// 2. 현재의 프린터를 가져온다.
 				if (GetDefaultPrinter(wszPrinterName, &dwLength)
-					&& (wcsicmp(wszPrinterName, g_Config.wszPrinterName) != 0))
+					&& (_wcsicmp(wszPrinterName, g_Config.wszPrinterName) != 0))
 				{
 					SetDefaultPrinter(g_Config.wszPrinterName);
 					WritePrivateProfileString(L"Default", L"Printer", wszPrinterName, g_wszCfgFilePath);
@@ -66,6 +70,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			UnhookFunction(&g_HookInfo[nhLoadLibraryExW]);
 			UnhookFunction(&g_HookInfo[nhStartXpsPrintJob]);
 			UnhookFunction(&g_HookInfo[nhOpenPrinter2W]);
+
+			DeleteCriticalSection(&cs);
 		}
 		break;
 	}

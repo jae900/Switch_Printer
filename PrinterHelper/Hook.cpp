@@ -10,6 +10,8 @@
 
 HOOKINFO	g_HookInfo[MAX_FUNCTION] = { 0, };		///< 후킹된 함수의 정보가 기록된 구조체 배열
 
+extern CRITICAL_SECTION cs;
+
 /**
 	@brief		문자를 숫자로 변경하는 루틴
 	@param[in]	숫자로 변경할 문자
@@ -300,11 +302,13 @@ HookFunction(__in HMODULE hMod, __in PVOID pfnOrgFunction, __in PHOOKINFO pHookI
 				DEBUG(L"Write Memory(Original) : " POINTER L" -> " POINTER, temp, pHookInfo->pfnHookedFunction);
 
 				// Original 루틴 주소에 JUMP 코드 삽입
+				EnterCriticalSection(&cs);
 				VirtualProtect(pHookInfo->pfnHookedFunction, JUMP_CODE, PAGE_EXECUTE_READWRITE, &dwOldProtect);
 				if (FALSE == WriteProcessMemory(GetCurrentProcess(), pHookInfo->pfnHookedFunction, returnCode, JUMP_CODE, NULL)) {
 					dwRet = GetLastError();
 				}
 				VirtualProtect(pHookInfo->pfnHookedFunction, JUMP_CODE, dwOldProtect, &dwOldProtect);
+				LeaveCriticalSection(&cs);
 
 				// 
 				FlushInstructionCache(GetCurrentProcess(), pHookInfo->pfnHookedFunction, JUMP_CODE);
@@ -377,13 +381,14 @@ UnhookFunction(__in PHOOKINFO	pHookInfo)
 	DWORD	dwOldProtect;
 	
 	DEBUG(L"Entering %S(" POINTER L")", __FUNCTION__, pHookInfo->pfnHookedFunction);
-
+	EnterCriticalSection(&cs);
 	VirtualProtect(pHookInfo->pfnHookedFunction, JUMP_CODE, PAGE_EXECUTE_READWRITE, &dwOldProtect);
 	if (FALSE == WriteProcessMemory(GetCurrentProcess(), pHookInfo->pfnHookedFunction, pHookInfo->pfnOrgFunction, JUMP_CODE, NULL)) {
 		dwRet = GetLastError();
 		DEBUG(L"Failed to write original instructions to process memory(%d).", dwRet);
 	}
 	VirtualProtect(pHookInfo->pfnHookedFunction, JUMP_CODE, dwOldProtect, &dwOldProtect);
+	LeaveCriticalSection(&cs);
 
 	FlushInstructionCache(GetCurrentProcess(), pHookInfo->pfnHookedFunction, JUMP_CODE);
 

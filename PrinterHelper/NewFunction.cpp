@@ -19,6 +19,8 @@ extern HMODULE	g_hMod;
 
 SPRINTER_CONFIG	g_Config = { 0, };				///< 설정 정보
 
+extern CRITICAL_SECTION	cs;
+
 /**
 	@brief		DC를 생성하는 루틴의 Trampoline 함수
 	@param[in]	pwszDriver		드라이버 이름
@@ -206,40 +208,41 @@ NewLoadLibraryExW(__in       LPCWSTR lpFileName,
 
 	hMod = ((FN_LOADLIBRARYEXW)g_HookInfo[nhLoadLibraryExW].pfnOrgFunction)(lpFileName, hFile, dwFlags);
 
+	size_t nLength;
 	//DEBUG(L"LoadLibrary : %s", lpFileName);
+	if (hFile == NULL) {
+		nLength = wcslen(lpFileName);
+		//		  123456789012
+		if (nLength >= 12) {
+			if ((_wcsnicmp(&lpFileName[nLength - 12], L"xpsprint.dll", 12) == 0)
+				&& (g_HookInfo[nhStartXpsPrintJob].pfnOrgFunction == NULL))
+			{
+				PVOID fnStartXpsPrintJob = GetProcAddress(hMod, "StartXpsPrintJob");
 
-	size_t nLength = wcslen(lpFileName);
+				DEBUG(L"Hook : StartXpsPrintJob : " POINTER, fnStartXpsPrintJob);
 
-										//		  123456789012
-	if (nLength >= 12) {
-		if ((_wcsnicmp(&lpFileName[nLength - 12], L"xpsprint.dll", 12) == 0)
-			&& (g_HookInfo[nhStartXpsPrintJob].pfnOrgFunction == NULL))
-		{
-			PVOID fnStartXpsPrintJob = GetProcAddress(hMod, "StartXpsPrintJob");
-
-			DEBUG(L"Hook : StartXpsPrintJob : " POINTER, fnStartXpsPrintJob);
-
-			if (fnStartXpsPrintJob) {
-				HookFunction(hMod, fnStartXpsPrintJob, &g_HookInfo[nhStartXpsPrintJob], NewStartXpsPrintJob);
+				if (fnStartXpsPrintJob) {
+					HookFunction(hMod, fnStartXpsPrintJob, &g_HookInfo[nhStartXpsPrintJob], NewStartXpsPrintJob);
+				}
+				else {
+					DWORD dwRet = GetLastError();
+					DEBUG(L"Failed to get procedure(%d).", dwRet);
+				}
 			}
-			else {
-				DWORD dwRet = GetLastError();
-				DEBUG(L"Failed to get procedure(%d).", dwRet);
-			}
-		}
-		else if ((_wcsnicmp(&lpFileName[nLength - 12], L"winspool.drv", 12) == 0)
-			&& (g_HookInfo[nhOpenPrinter2W].pfnOrgFunction == NULL))
-		{
-			PVOID fnOpenPrinter2W = GetProcAddress(hMod, "OpenPrinter2W");
+			else if ((_wcsnicmp(&lpFileName[nLength - 12], L"winspool.drv", 12) == 0)
+				&& (g_HookInfo[nhOpenPrinter2W].pfnOrgFunction == NULL))
+			{
+				PVOID fnOpenPrinter2W = GetProcAddress(hMod, "OpenPrinter2W");
 
-			DEBUG(L"Hook : OpenPrinter2W : " POINTER, fnOpenPrinter2W);
+				DEBUG(L"Hook : OpenPrinter2W : " POINTER, fnOpenPrinter2W);
 
-			if (fnOpenPrinter2W) {
-				HookFunction(hMod, fnOpenPrinter2W, &g_HookInfo[nhOpenPrinter2W], NewOpenPrinter2W);
-			}
-			else {
-				DWORD dwRet = GetLastError();
-				DEBUG(L"Failed to get procedure(%d).", dwRet);
+				if (fnOpenPrinter2W) {
+					HookFunction(hMod, fnOpenPrinter2W, &g_HookInfo[nhOpenPrinter2W], NewOpenPrinter2W);
+				}
+				else {
+					DWORD dwRet = GetLastError();
+					DEBUG(L"Failed to get procedure(%d).", dwRet);
+				}
 			}
 		}
 	}
