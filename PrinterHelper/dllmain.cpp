@@ -1,6 +1,6 @@
 /**
 	@file		dllmain.cpp
-	@brief		DLL ÁøÀÔÁ¡ÀÌ Á¤ÀÇµÈ ÆÄÀÏ
+	@brief		DLL ì§„ì…ì ì´ ì •ì˜ëœ íŒŒì¼
 */
 #include "stdafx.h"
 #include "Hook.h"
@@ -15,7 +15,7 @@ extern HOOKINFO	g_HookInfo[MAX_FUNCTION];
 extern WCHAR	g_wszCfgFilePath[MAX_PATH];
 
 /**
-	@brief		DLL ¿£Æ®¸®
+	@brief		DLL ì—”íŠ¸ë¦¬
 */
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -36,14 +36,14 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			
 			GetConfiguration(&g_Config);
 
-			// FarPoint¸¦ »ç¿ëÇÏ´Â Ãâ·Â ÇÁ·Î±×·¥ÀÇ division by zero ¿À·ùµîÀ» ÇØ°áÇÏ±â À§ÇØ
-			// ±âº» ÇÁ¸°ÅÍ¸¦ ¼³Á¤µÈ ÇÁ¸°ÅÍ·Î ¼³Á¤ÇÑ´Ù.
+			// FarPointë¥¼ ì‚¬ìš©í•˜ëŠ” ì¶œë ¥ í”„ë¡œê·¸ë¨ì˜ division by zero ì˜¤ë¥˜ë“±ì„ í•´ê²°í•˜ê¸° ìœ„í•´
+			// ê¸°ë³¸ í”„ë¦°í„°ë¥¼ ì„¤ì •ëœ í”„ë¦°í„°ë¡œ ì„¤ì •í•œë‹¤.
 			WCHAR	wszPrinterName[64];
 			DWORD	dwLength = 64;
 
-			// 1. µ¿ÀÛ ÁßÀÎÁö È®ÀÎ
+			// 1. ë™ì‘ ì¤‘ì¸ì§€ í™•ì¸
 			if (g_Config.bRun) {
-				// 2. ÇöÀçÀÇ ÇÁ¸°ÅÍ¸¦ °¡Á®¿Â´Ù.
+				// 2. í˜„ì¬ì˜ í”„ë¦°í„°ë¥¼ ê°€ì ¸ì˜¨ë‹¤.
 				if (GetDefaultPrinter(wszPrinterName, &dwLength)
 					&& (wcsicmp(wszPrinterName, g_Config.wszPrinterName) != 0))
 				{
@@ -62,10 +62,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		break;
 	case DLL_PROCESS_DETACH:
 		{
-			// ¾ğÈÄÅ·
+			// ì–¸í›„í‚¹
 			UnhookFunction(&g_HookInfo[nhLoadLibraryExW]);
 			UnhookFunction(&g_HookInfo[nhStartXpsPrintJob]);
-			UnhookFunction(&g_HookInfo[nhCreateDCW]);
+			UnhookFunction(&g_HookInfo[nhOpenPrinter2W]);
 		}
 		break;
 	}
